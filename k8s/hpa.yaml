@@ -1,0 +1,43 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: scoring-server-hpa
+  namespace: scoring
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: scoring-server
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # CPU 70% 사용 시 스케일 아웃
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # 메모리 80% 사용 시 스케일 아웃
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60  # 1분간 메트릭 안정화 후 스케일 업
+      policies:
+      - type: Percent
+        value: 100  # 한번에 최대 100% (2배) 증가
+        periodSeconds: 60
+      - type: Pods
+        value: 2  # 한번에 최대 2개 파드 추가
+        periodSeconds: 60
+      selectPolicy: Max  # 더 공격적인 정책 선택
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5분간 메트릭 안정화 후 스케일 다운
+      policies:
+      - type: Pods
+        value: 1  # 한번에 1개씩만 감소
+        periodSeconds: 60
+      selectPolicy: Min  # 더 보수적인 정책 선택

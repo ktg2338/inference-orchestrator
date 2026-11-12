@@ -1,0 +1,135 @@
+# AKS RBAC 설정
+# Container App에서 AKS Pod를 생성/관리하기 위한 권한 설정
+
+---
+# Namespace 생성
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scoring
+  labels:
+    name: scoring
+
+---
+# ServiceAccount 생성 (Container App용)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scoring-service-account
+  namespace: scoring
+
+---
+# Role 생성 (Pod 관리 권한)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scoring-pod-manager
+  namespace: scoring
+rules:
+  # Pod 관리
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Pod exec (파일 복사용)
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+
+  # Pod logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+
+  # Pod status
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get", "list", "watch"]
+
+  # Job 관리
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+# RoleBinding 생성
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scoring-pod-manager-binding
+  namespace: scoring
+subjects:
+  - kind: ServiceAccount
+    name: scoring-service-account
+    namespace: scoring
+roleRef:
+  kind: Role
+  name: scoring-pod-manager
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ResourceQuota (네임스페이스 리소스 제한)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: scoring-quota
+  namespace: scoring
+spec:
+  hard:
+    requests.cpu: "100"
+    requests.memory: "200Gi"
+    persistentvolumeclaims: "10"
+    pods: "100"
+
+---
+# LimitRange (Pod별 리소스 제한)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: scoring-limitrange
+  namespace: scoring
+spec:
+  limits:
+    - max:
+        cpu: "16"
+        memory: "64Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+      default:
+        cpu: "1"
+        memory: "2Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "1Gi"
+      type: Container
+
+---
+# NetworkPolicy (보안 강화 - 선택사항)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scoring-network-policy
+  namespace: scoring
+spec:
+  podSelector:
+    matchLabels:
+      app: scoring-pod
+  policyTypes:
+    - Egress
+  egress:
+    # DNS 허용
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Azure Blob Storage 접근 허용 (필요시)
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443

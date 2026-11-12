@@ -1,0 +1,40 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+scoring-server
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Test files
+test_scoring.go
+*.zip
+/tmp/
+
+# Git
+.git/
+.gitignore
+
+# Local scripts / test payloads / env files
+*.py
+*.json
+.env*

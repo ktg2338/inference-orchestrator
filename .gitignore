@@ -1,0 +1,6 @@
+*.zip
+venv
+task
+docker-scoring-env
+*.json
+scoring_message.json
